@@ -111,25 +111,26 @@ app.get('/api/estados', authenticateToken, async (req, res) => {
 // Obtener todos los cursos
 app.get('/api/cursos', authenticateToken, async (req, res) => {
     try {
+        
+
         const { search, estado } = req.query;
         let query = `
             SELECT c.*, e.nombre as estado_nombre 
             FROM cegae_cursosdisponibles c
             LEFT JOIN cegae_estados e ON c.idestado = e.idestado
-            WHERE 1=1
+            WHERE c.idestado = 1
         `;
         const params = [];
-        
         if (search) {
             params.push(`%${search}%`);
             query += ` AND (c.nombre_curso ILIKE $${params.length} 
                        OR c.descripcion ILIKE $${params.length})`;
         }
-        
-        if (estado) {
-            params.push(estado);
-            query += ` AND c.idestado = $${params.length}`;
-        }
+        //console.log("estado", estado);
+        // if (estado) {
+        //     params.push(estado);
+        //     query += ` AND c.idestado = $${params.length}`;
+        // }
         
         query += ' ORDER BY c.idcurso DESC';
         
@@ -253,7 +254,7 @@ app.delete('/api/cursos/:id', authenticateToken, async (req, res) => {
         
         // Verificar si hay ciclos asociados
         const ciclosCheck = await pool.query(
-            'SELECT COUNT(*) FROM cegae_cursosdisponiblesciclo WHERE idcurso = $1',
+            'SELECT COUNT(*) FROM cegae_cursosdisponiblesciclo WHERE idcurso = $1 and idestado = 1',
             [id]
         );
         
@@ -266,7 +267,7 @@ app.delete('/api/cursos/:id', authenticateToken, async (req, res) => {
         // Soft delete: marcar como anulado
         const result = await pool.query(
             `UPDATE cegae_cursosdisponibles 
-             SET idestado = 3, 
+             SET idestado = 2, 
                  fechaanulacion = CURRENT_TIMESTAMP 
              WHERE idcurso = $1
              RETURNING *`,
@@ -297,7 +298,7 @@ app.get('/api/ciclos', authenticateToken, async (req, res) => {
             FROM cegae_cursosdisponiblesciclo ci
             INNER JOIN cegae_cursosdisponibles cu ON ci.idcurso = cu.idcurso
             LEFT JOIN cegae_estados e ON ci.idestado = e.idestado
-            WHERE 1=1 
+            WHERE  ci.idestado =1 
         `;
         const params = [];
         
@@ -311,10 +312,10 @@ app.get('/api/ciclos', authenticateToken, async (req, res) => {
             query += ` AND ci.idcurso = $${params.length}`;
         }
         
-        if (estado) {
-            params.push(estado);
-            query += ` AND ci.idestado = $${params.length}`;
-        }
+        // if (estado) {
+        //     params.push(estado);
+        //     query += ` AND ci.idestado = $${params.length}`;
+        // }
         
         query += ' ORDER BY ci.idcurso DESC';
         
@@ -452,17 +453,17 @@ app.put('/api/ciclos/:id', authenticateToken, async (req, res) => {
 app.delete('/api/ciclos/:id', authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
-        
+         
         // Soft delete: marcar como anulado
         const result = await pool.query(
             `UPDATE cegae_cursosdisponiblesciclo 
-             SET idestado = 3, 
+             SET idestado = 2, 
                  fechaanulacion = CURRENT_TIMESTAMP 
              WHERE idciclo = $1
              RETURNING *`,
             [id]
         );
-        
+         
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Ciclo no encontrado' });
         }
